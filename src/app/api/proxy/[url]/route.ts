@@ -85,7 +85,11 @@ function looksLikeImageUrl(target: string): boolean {
  * - m3u8 文本重写为代理路径，分片/key/map 全部经本站转发，规避上游 CORS。
  */
 export async function GET(req: Request, ctx: { params: Promise<{ url: string }> }) {
-  const { url: encodedUrl } = await ctx.params;
+  // 优先从查询串取目标地址：Cloudflare 不会解码查询串里的 %2F，
+  // 封面图走 /api/proxy/img?url=<encoded> 可规避路径 %2F 被解码导致的 400/404。
+  // 仍兼容旧的路径形式 /api/proxy/<encoded>（m3u8 分片等流媒体代理）。
+  const { searchParams } = new URL(req.url);
+  const encodedUrl = searchParams.get('url') ?? (await ctx.params).url;
   const targetUrl = (() => {
     try { return decodeURIComponent(encodedUrl); } catch { return encodedUrl; }
   })();
